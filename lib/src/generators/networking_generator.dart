@@ -3,12 +3,17 @@ import 'dart:io';
 import '../config/project_config.dart';
 import '../utils/console.dart';
 
+/// Generates networking infrastructure and selected package dependencies.
 class NetworkingGenerator {
+  /// Creates a generator for [root] using [config].
   NetworkingGenerator({required this.root, required this.config});
 
+  /// Root directory of the Flutter project being generated.
   final Directory root;
+  /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
+  /// Generates the selected networking client and updates dependencies.
   Future<void> generate() async {
     final networkingEnabled = config.networking == 'dio' || config.networking == 'http';
     if (!networkingEnabled) {
@@ -292,7 +297,9 @@ abstract class BaseRepository {
               messages.add(value.toString());
             }
           }
-          if (messages.isNotEmpty) message = messages.join('\n');
+          if (messages.isNotEmpty) {
+            message = messages.join('\n');
+          }
         }
         throw ApiException(message.isEmpty ? 'Request failed.' : message);
       }
@@ -562,7 +569,9 @@ abstract class BaseRepository {
               messages.add(value.toString());
             }
           }
-          if (messages.isNotEmpty) message = messages.join('\n');
+          if (messages.isNotEmpty) {
+            message = messages.join('\n');
+          }
         }
         throw ApiException(message.isEmpty ? 'Request failed.' : message);
       }
@@ -625,7 +634,8 @@ Future<void> configureDependencies({required String baseUrl}) async {
 }
 ''';
     }
-    return '''
+    if (config.networking == 'http') {
+      return '''
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 
@@ -642,29 +652,50 @@ Future<void> configureDependencies() async {
   // </bloc_cli:feature-registrations>
 }
 ''';
+    }
+
+    return '''
+import 'package:get_it/get_it.dart';
+
+final getIt = GetIt.instance;
+
+// <bloc_cli:feature-imports>
+// </bloc_cli:feature-imports>
+
+Future<void> configureDependencies() async {
+  // <bloc_cli:feature-registrations>
+  // </bloc_cli:feature-registrations>
+}
+''';
   }
 
 
+  /// Adds the generated feature dependency module to the DI initializer.
   Future<void> registerFeature(String rawName) async {
     if (config.dependencyInjection != 'getit' &&
-        config.dependencyInjection != 'getit_injectable') return;
+        config.dependencyInjection != 'getit_injectable') {
+      return;
+    }
     final feature = rawName
         .replaceAll(RegExp(r'([a-z0-9])([A-Z])'), r'$1_$2')
         .replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_')
         .toLowerCase()
         .replaceAll(RegExp(r'^_+|_+$'), '');
-    if (feature.isEmpty) return;
+    if (feature.isEmpty) {
+      return;
+    }
     final className = feature.split('_').map((part) =>
         part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1)).join();
     final featureDi = File('${root.path}/lib/features/$feature/${feature}_di.dart');
     final remoteEnabled = config.dataSource == 'remote' || config.dataSource == 'both';
     final remoteImport = remoteEnabled ? "import 'data/datasources/${feature}_remote_datasource.dart';" : '';
     final datasourceRegistration = remoteEnabled && config.networking == 'dio'
-        ? "getIt.registerLazySingleton<${className}RemoteDataSource>(() => ${className}RemoteDataSourceImpl(getIt<Dio>()));"
+        ? "if (!getIt.isRegistered<${className}RemoteDataSource>()) getIt.registerLazySingleton<${className}RemoteDataSource>(() => ${className}RemoteDataSourceImpl(getIt<Dio>()));"
         : remoteEnabled && config.networking == 'http'
-            ? "getIt.registerLazySingleton<${className}RemoteDataSource>(() => ${className}RemoteDataSourceImpl(getIt<http.Client>(), Uri.parse('https://example.com')));"
+            ? "if (!getIt.isRegistered<${className}RemoteDataSource>()) getIt.registerLazySingleton<${className}RemoteDataSource>(() => ${className}RemoteDataSourceImpl(getIt<http.Client>(), Uri.parse('https://example.com')));"
             : '';
-    await featureDi.writeAsString('''
+    if (!await featureDi.exists()) {
+      await featureDi.writeAsString('''
 import 'package:get_it/get_it.dart';
 ${config.networking == 'dio' && remoteEnabled ? "import 'package:dio/dio.dart';" : ""}
 ${config.networking == 'http' && remoteEnabled ? "import 'package:http/http.dart' as http;" : ""}
@@ -676,14 +707,25 @@ import 'presentation/bloc/${feature}_bloc.dart';
 
 void register${className}Dependencies(GetIt getIt) {
   ${datasourceRegistration}
-  getIt.registerLazySingleton<${className}Repository>(() => ${className}RepositoryImpl(${remoteEnabled ? "getIt<${className}RemoteDataSource>()" : ""}));
-  getIt.registerLazySingleton(() => Get${className}UseCase(getIt<${className}Repository>()));
-  getIt.registerFactory(() => ${className}Bloc(getIt<Get${className}UseCase>()));
+  if (!getIt.isRegistered<${className}Repository>()) {
+    getIt.registerLazySingleton<${className}Repository>(() => ${className}RepositoryImpl(${remoteEnabled ? "getIt<${className}RemoteDataSource>()" : ""}));
+  }
+  if (!getIt.isRegistered<Get${className}UseCase>()) {
+    getIt.registerLazySingleton(() => Get${className}UseCase(getIt<${className}Repository>()));
+  }
+  if (!getIt.isRegistered<${className}Bloc>()) {
+    getIt.registerFactory(() => ${className}Bloc(getIt<Get${className}UseCase>()));
+  }
 }
 ''');
+    } else {
+      Console.info('Preserved existing lib/features/$feature/${feature}_di.dart.');
+    }
 
     final injection = File('${root.path}/lib/core/di/injection.dart');
-    if (!await injection.exists()) return;
+    if (!await injection.exists()) {
+      return;
+    }
     var source = await injection.readAsString();
     const importsMarker = '// <bloc_cli:feature-imports>';
     const registrationsMarker = '// <bloc_cli:feature-registrations>';
@@ -717,7 +759,9 @@ void register${className}Dependencies(GetIt getIt) {
 
   Future<bool> _addDependencies(Map<String, String> dependencies) async {
     final pubspec = File('${root.path}/pubspec.yaml');
-    if (!await pubspec.exists()) return false;
+    if (!await pubspec.exists()) {
+      return false;
+    }
 
     var content = await pubspec.readAsString();
     final lines = content.split('\n');
@@ -754,7 +798,9 @@ void register${className}Dependencies(GetIt getIt) {
   Future<bool> _addDevDependencies(Map<String, String> dependencies) async {
     if (dependencies.isEmpty) return false;
     final pubspec = File('${root.path}/pubspec.yaml');
-    if (!await pubspec.exists()) return false;
+    if (!await pubspec.exists()) {
+      return false;
+    }
     final lines = (await pubspec.readAsString()).split('\n');
     final sectionIndex = lines.indexWhere(
       (line) => RegExp(r'^dev_dependencies\s*:\s*(#.*)?$').hasMatch(line),
@@ -767,7 +813,9 @@ void register${className}Dependencies(GetIt getIt) {
       if (line.trim().isNotEmpty &&
           !line.trimLeft().startsWith('#') &&
           !line.startsWith(' ') &&
-          !line.startsWith('\t')) break;
+          !line.startsWith('\t')) {
+        break;
+      }
       final match = RegExp(r'^\s{2}([A-Za-z0-9_]+)\s*:').firstMatch(line);
       if (match != null) existing.add(match.group(1)!);
       end++;

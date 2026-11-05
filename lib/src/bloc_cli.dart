@@ -3,12 +3,19 @@ import 'dart:io';
 
 import 'config/project_config.dart';
 import 'generators/feature_generator.dart';
+import 'generators/screen_generator.dart';
+import 'generators/application_generator.dart';
 import 'generators/routing_generator.dart';
 import 'generators/networking_generator.dart';
 import 'utils/console.dart';
 import 'utils/project.dart';
 
+/// Runs the `bloc_cli` command-line interface.
+///
+/// Supported commands include project initialization and feature or screen
+/// generation. Commands operate on the current working directory.
 class BlocCli {
+  /// Parses [args] and executes the requested CLI command.
   static Future<void> run(List<String> args) async {
     if (args.isEmpty ||
         args.first == 'help' ||
@@ -28,7 +35,7 @@ class BlocCli {
       case 'version':
       case '--version':
       case '-v':
-        Console.info('bloc_cli 0.1.5');
+        Console.info('bloc_cli 0.1.6');
         return;
       default:
         Console.error('Unknown command: ${args.first}');
@@ -160,6 +167,7 @@ class BlocCli {
     await _ensureCoreStructure(root);
     await NetworkingGenerator(root: root, config: config).generate();
     await RoutingGenerator(root: root, config: config).generateCoreFiles();
+    await ApplicationGenerator(root: root, config: config).generateMain();
     Console.success('Configuration saved to .bloc_cli.json');
     Console.success('Initialization complete.');
     Console.info('Next: bloc_cli create feature auth');
@@ -167,15 +175,25 @@ class BlocCli {
 
   static Future<void> _create(List<String> args) async {
     if (args.length < 2) {
-      Console.error('Usage: bloc_cli create feature <name>');
+      Console.error('Usage: bloc_cli create feature <name> | create screen <name> --feature <feature>');
       return;
     }
+
     final type = args[0];
     final name = args[1];
-    final overwrite = args.skip(2).any((arg) => arg == '--force' || arg == '--overwrite');
+    final flags = args.skip(2).toList();
+    final overwrite = flags.contains('--force') || flags.contains('--overwrite');
+    final withBloc = flags.contains('--with-bloc');
+    final withRepository = flags.contains('--with-repository');
+    String? featureName;
+    for (var i = 0; i < flags.length; i++) {
+      if (flags[i] == '--feature' && i + 1 < flags.length) {
+        featureName = flags[i + 1];
+      }
+    }
+
     final root = Directory.current;
     final configFile = File('${root.path}/.bloc_cli.json');
-
     if (!await Project.isFlutterProject(root)) {
       Console.error('Run this command from the root of a Flutter project.');
       return;
@@ -189,19 +207,34 @@ class BlocCli {
       jsonDecode(await configFile.readAsString()) as Map<String, dynamic>,
     );
 
-    // Reconcile shared infrastructure on init-created and existing projects.
     await NetworkingGenerator(root: root, config: config).generate();
     await RoutingGenerator(root: root, config: config).generateCoreFiles();
 
     switch (type) {
       case 'feature':
-        await FeatureGenerator(root: root, config: config).generate(name, overwrite: overwrite);
+        await FeatureGenerator(root: root, config: config).generate(
+          name,
+          overwrite: overwrite,
+        );
         await RoutingGenerator(root: root, config: config).registerFeature(name);
         await NetworkingGenerator(root: root, config: config).registerFeature(name);
         return;
+      case 'screen':
+        if (featureName == null || featureName.trim().isEmpty) {
+          Console.error('Missing --feature. Example: bloc_cli create screen profile --feature auth');
+          return;
+        }
+        await ScreenGenerator(root: root, config: config).generate(
+          name,
+          rawFeatureName: featureName,
+          withBloc: withBloc,
+          withRepository: withRepository,
+          force: overwrite,
+        );
+        return;
       default:
         Console.error('Unsupported generator: $type');
-        Console.info('Currently supported: feature');
+        Console.info('Supported generators: feature, screen');
     }
   }
 
@@ -219,7 +252,9 @@ class BlocCli {
 
   static Future<void> _addGitIgnoreEntry(Directory root, String entry) async {
     final file = File('${root.path}/.gitignore');
-    if (!await file.exists()) return;
+    if (!await file.exists()) {
+      return;
+    }
     final content = await file.readAsString();
     if (!content.split('\n').contains(entry)) {
       await file.writeAsString('${content.trimRight()}\n$entry\n');
@@ -233,8 +268,9 @@ class BlocCli {
     stdout.writeln('Commands:');
     stdout.writeln(
         '  bloc_cli init                         Configure a Flutter project');
-    stdout.writeln(
-        '  bloc_cli create feature <name> [--force]  Generate/repair a Clean Architecture feature');
+    stdout.writeln('  bloc_cli create feature <name> [--force]  Generate a Clean Architecture feature');
+    stdout.writeln('  bloc_cli create screen <name> --feature <feature> [--with-bloc] [--with-repository] [--force]');
+    stdout.writeln('                                         Generate a screen inside an existing feature');
     stdout.writeln('  bloc_cli help                         Show this help');
     stdout.writeln('  bloc_cli version                      Show version');
   }

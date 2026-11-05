@@ -5,12 +5,17 @@ import '../config/project_config.dart';
 import '../utils/console.dart';
 import '../utils/project.dart';
 
+/// Generates root navigation files and aggregates feature routes.
 class RoutingGenerator {
+  /// Creates a generator for [root] using [config].
   RoutingGenerator({required this.root, required this.config});
 
+  /// Root directory of the Flutter project being generated.
   final Directory root;
+  /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
+  /// Creates the selected root routing files without replacing existing files.
   Future<void> generateCoreFiles() async {
     if (!config.usesBuiltInRouting) {
       Console.info('Routing files skipped (${config.routing}); routing is managed by the project.');
@@ -137,10 +142,16 @@ final Map<String, WidgetBuilder> appRoutes = {
     await file.writeAsString(source);
   }
 
+  /// Adds the feature named [rawName] to the root router and route constants.
+  /// Adds [rawName] to the root route collection and creates its route file.
   Future<void> registerFeature(String rawName) async {
-    if (!config.usesBuiltInRouting) return;
+    if (!config.usesBuiltInRouting) {
+      return;
+    }
     final feature = Project.snakeCase(rawName);
-    if (feature.isEmpty) return;
+    if (feature.isEmpty) {
+      return;
+    }
     final className = Project.pascalCase(feature);
     final appRoutesFile = File('${root.path}/lib/core/routes/app_routes.dart');
     if (await appRoutesFile.exists()) {

@@ -1,0 +1,7 @@
+include: package:lints/recommended.yaml
+
+linter:
+  rules:
+    public_member_api_docs: true
+    curly_braces_in_flow_control_structures: true
+    avoid_print: true

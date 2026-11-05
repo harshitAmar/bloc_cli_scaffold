@@ -1,5 +1,10 @@
 
+/// Stores the architecture and integration choices for a Flutter project.
+///
+/// Values are persisted in `.bloc_cli.json` and reused by subsequent
+/// generation commands.
 class ProjectConfig {
+  /// Creates a project configuration from normalized integration choices.
   const ProjectConfig({
     required this.stateStyle,
     required this.networking,
@@ -10,14 +15,22 @@ class ProjectConfig {
     required this.serialization,
   });
 
+  /// Selected event/state implementation: Equatable, Freezed, plain Dart, or custom.
   final String stateStyle;
+  /// Selected networking integration, such as Dio, HTTP, custom, or none.
   final String networking;
+  /// Selected navigation integration.
   final String routing;
+  /// Whether route paths, route names, or both are generated.
   final String navigationStyle;
+  /// Selected dependency registration strategy.
   final String dependencyInjection;
+  /// Selected remote, local, combined, custom, or no datasource strategy.
   final String dataSource;
+  /// Selected model serialization strategy.
   final String serialization;
 
+  /// Converts this configuration to the stable on-disk JSON representation.
   Map<String, dynamic> toJson() => {
     'version': 1,
     'architecture': 'clean',
@@ -30,6 +43,7 @@ class ProjectConfig {
     'serialization': serialization,
   };
 
+  /// Creates a configuration from a previously saved JSON [json] map.
   factory ProjectConfig.fromJson(Map<String, dynamic> json) => ProjectConfig(
     stateStyle: _normalizeState(json['stateStyle'] as String?),
     networking: _normalizeNetworking(json['networking'] as String?),
@@ -116,9 +130,14 @@ class ProjectConfig {
     }
   }
 
+  /// Whether route path constants should be generated.
   bool get hasRoutePaths => navigationStyle == 'route_paths' || navigationStyle == 'both';
+  /// Whether route name constants should be generated.
   bool get hasRouteNames => navigationStyle == 'route_names' || navigationStyle == 'both';
+  /// Whether the selected router is GoRouter.
   bool get usesGoRouter => routing == 'go_router';
+  /// Whether the selected router is Flutter Navigator.
   bool get usesNavigator => routing == 'flutter_default_navigator';
+  /// Whether a built-in routing integration is selected.
   bool get usesBuiltInRouting => usesGoRouter || usesNavigator;
 }

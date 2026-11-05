@@ -1,30 +1,36 @@
-# bloc_cli_scaffold
+# bloc_cli
 
-A configurable Flutter CLI for generating feature-first Clean Architecture projects with BLoC, networking, routing, dependency injection, and serialization options.
+A configurable Flutter CLI that scaffolds Clean Architecture features, screens, BLoC, routing, networking, and dependency injection.
 
-`bloc_cli` helps you establish a consistent project structure and generate new features without repeatedly creating boilerplate files.
+`bloc_cli` reduces repetitive setup by generating a consistent feature-first structure and wiring supported integrations into an existing Flutter project. Generated code is a starting point: add real endpoints, models, validation, error handling, and application-specific behavior before shipping.
 
 ## Features
 
-- Initialize Clean Architecture structure in an existing Flutter project.
-- Generate feature modules with `bloc_cli create feature`.
-- Choose your preferred BLoC state and event implementation.
-- Select a networking solution.
-- Configure routing and navigation constants.
-- Choose a dependency injection strategy.
-- Generate remote and/or local datasource structures.
-- Select a serialization strategy.
-- Automatically update project dependencies when supported by the selected configuration.
-- Save project configuration in `.bloc_cli.json`.
-- Preserve existing files by default.
-- Use `--force` when you intentionally want to regenerate existing generated files.
+- Interactive Clean Architecture configuration.
+- Feature generation with data, domain, and presentation layers.
+- Additional screen generation inside an existing feature.
+- Optional screen-scoped BLoC generation.
+- Optional screen repository, use-case, model, and datasource templates.
+- Dio and HTTP networking templates.
+- API client, API result, and base repository templates.
+- GoRouter and Flutter Navigator route generation.
+- Route path and route name constants.
+- GetIt dependency registration templates.
+- Dependency additions to the target Flutter project's `pubspec.yaml`.
+- Existing-file preservation by default and explicit `--force` regeneration.
+- Project configuration persistence in `.bloc_cli.json`.
+
+## Requirements
+
+- Dart SDK `>=3.3.0 <4.0.0`.
+- Flutter SDK installed for target-project generation.
+- Run commands from the root of an existing Flutter application.
+- Add the Dart Pub cache `bin` directory to PATH to run the global executable.
 
 ## Installation
 
-Install the CLI globally:
-
 ```bash
-dart pub global activate bloc_cli_scaffold
+dart pub global activate bloc_cli
 ```
 
 Verify the installation:
@@ -34,153 +40,86 @@ bloc_cli --version
 bloc_cli --help
 ```
 
-### Windows PATH configuration
-
-If the `bloc_cli` command is not recognized, add the Dart Pub cache executable directory to your PATH:
+On Windows, if the command is not recognized, add this directory to PATH and restart the terminal:
 
 ```text
 %LOCALAPPDATA%\Pub\Cache\bin
 ```
 
-Restart your terminal after updating PATH.
-
-### Activate from source
-
-To use a local checkout while developing:
+### Activate from a local checkout
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/bloc_cli_scaffold.git
-cd bloc_cli_scaffold
-
+git clone https://github.com/harshitAmar/bloc_cli_scaffold.git
+cd bloc_cli
 dart pub get
 dart pub global activate --source path .
 ```
 
-## Requirements
-
-- Dart SDK compatible with the package's declared SDK constraint.
-- Flutter SDK installed and available in PATH.
-- An existing Flutter project for the `init` and feature-generation workflows.
-- Internet access when the CLI needs to resolve newly added dependencies.
-
-If you use FVM, run the CLI from the terminal where your Flutter SDK is configured and available.
 
 ## Quick start
 
-### 1. Initialize your Flutter project
-
-Navigate to your existing Flutter project:
+Navigate to your Flutter project:
 
 ```bash
-cd my_flutter_app
+cd path/to/flutter_app
 ```
 
-Run:
+Initialize the architecture and select integrations interactively:
 
 ```bash
 bloc_cli init
 ```
 
-The CLI guides you through the architecture configuration and generates the selected core structure.
-
-### 2. Create a feature
+Generate a feature:
 
 ```bash
 bloc_cli create feature auth
 ```
 
-This generates the feature structure according to your saved configuration.
-
-### 3. Generate again with force
-
-By default, existing files are preserved. If you intentionally want to overwrite generated files:
+Add a screen to an existing feature:
 
 ```bash
-bloc_cli create feature auth --force
+bloc_cli create screen profile --feature auth
 ```
 
-**Warning:** `--force` can overwrite your existing implementation. Commit or back up your work before using it.
+Add a screen with a screen-scoped BLoC:
+
+```bash
+bloc_cli create screen profile --feature auth --with-bloc
+```
+
+Add a screen with a BLoC and repository/data/domain templates:
+
+```bash
+bloc_cli create screen profile --feature auth --with-bloc --with-repository
+```
+
+Regenerate target files intentionally:
+
+```bash
+bloc_cli create screen profile --feature auth --with-bloc --with-repository --force
+```
+
+> **Warning:** `--force` overwrites the matching generated files. Commit or back up custom changes first.
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `bloc_cli help` | Show command help |
+| `bloc_cli --version` | Show CLI version |
+| `bloc_cli init` | Configure and initialize a Flutter project |
+| `bloc_cli create feature <name>` | Generate a Clean Architecture feature |
+| `bloc_cli create feature <name> --force` | Regenerate generated feature files |
+| `bloc_cli create screen <name> --feature <feature>` | Add a screen to an existing feature |
+| `bloc_cli create screen <name> --feature <feature> --with-bloc` | Add a screen and BLoC |
+| `bloc_cli create screen <name> --feature <feature> --with-bloc --with-repository` | Add a screen with BLoC and repository templates |
 
 ## Configuration
 
-During initialization, `bloc_cli` asks you to choose the architecture and implementation options.
+`bloc_cli init` writes the selected options to `.bloc_cli.json` in the Flutter project root. The file is reused by later generation commands.
 
-Your choices are saved in:
-
-```text
-.bloc_cli.json
-```
-
-The saved configuration is reused when generating additional features.
-
-### State management
-
-Choose how BLoC events and states should be implemented:
-
-| Option | Description |
-|---|---|
-| Equatable | Value equality using Equatable |
-| Freezed | Immutable classes and generated union/data classes |
-| Plain Dart | Standard Dart classes |
-| Custom | Use your own implementation approach |
-
-### Networking
-
-| Option | Description |
-|---|---|
-| Dio | Dio-based HTTP client |
-| HTTP | Dart HTTP package |
-| Custom | Use your own networking implementation |
-| None | Do not generate networking integration |
-
-### Routing
-
-| Option | Description |
-|---|---|
-| GoRouter | GoRouter-based navigation |
-| Flutter Navigator | Built-in Flutter Navigator |
-| Custom | Use your own routing implementation |
-| None | Do not generate routing integration |
-
-### Navigation constants
-
-| Option | Description |
-|---|---|
-| Paths | Generate route paths |
-| Names | Generate route names |
-| Both | Generate route paths and names |
-
-### Dependency injection
-
-| Option | Description |
-|---|---|
-| GetIt | GetIt service locator |
-| GetIt + Injectable | GetIt with Injectable-based registration |
-| Manual | Manual dependency initialization |
-| Custom | Use your own dependency injection approach |
-
-### Datasource
-
-| Option | Description |
-|---|---|
-| Remote | Remote datasource structure |
-| Local | Local datasource structure |
-| Both | Remote and local datasource structures |
-| Custom | Use your own datasource implementation |
-| None | Do not generate datasource integration |
-
-### Serialization
-
-| Option | Description |
-|---|---|
-| json_serializable | JSON serialization using json_serializable |
-| Freezed | Freezed-based model generation |
-| Manual | Manually written serialization |
-| Custom | Use your own serialization approach |
-
-## Configuration example
-
-A representative `.bloc_cli.json` configuration:
+Example:
 
 ```json
 {
@@ -196,11 +135,23 @@ A representative `.bloc_cli.json` configuration:
 }
 ```
 
-The exact values in this file are managed by the CLI. Keep the file in your project root so future feature generation uses the same choices.
+Available choices:
 
-## Generated architecture
+| Area | Options |
+|---|---|
+| BLoC state/event style | Equatable, Freezed, Plain Dart, Custom |
+| Networking | Dio, HTTP, Custom, None |
+| Routing | GoRouter, Flutter Navigator, Custom, None |
+| Navigation constants | Paths, Names, Both |
+| Dependency injection | GetIt, GetIt + Injectable, Manual, Custom |
+| Datasource | Remote, Local, Both, Custom, None |
+| Serialization | json_serializable, Freezed, Manual, Custom |
 
-The generated structure depends on your configuration. A representative feature-first Clean Architecture layout looks like this:
+Some custom/manual integrations require application-specific wiring. Review the generated code and the console instructions for the selected options. In this release, automatic DI integration is primarily implemented for GetIt; do not assume that selecting Manual, Custom, or Injectable produces the same generated behavior as plain GetIt.
+
+## Generated structure
+
+A feature is generated in a feature-first layout similar to:
 
 ```text
 lib/
@@ -209,143 +160,94 @@ lib/
 │   │   └── injection.dart
 │   ├── network/
 │   │   ├── api_client.dart
+│   │   ├── api_response.dart
 │   │   └── base_repository.dart
 │   └── routes/
 │       ├── app_routes.dart
 │       └── app_router.dart
-│
 └── features/
     └── auth/
         ├── data/
         │   ├── datasources/
         │   ├── models/
         │   └── repositories/
-        │
         ├── domain/
         │   ├── entities/
         │   ├── repositories/
         │   └── usecases/
-        │
         └── presentation/
             ├── bloc/
             ├── pages/
             └── widgets/
 ```
 
-This is a representative layout. Generated folders and files vary depending on your selected options and the generator version.
+The exact files depend on the selected configuration and the command flags.
 
-## Networking and dependency injection
+## Screen lifecycle and dependency registration
 
-When Dio is selected, the generated networking layer should centralize its configuration in the API client.
+When a screen is generated with `--with-bloc`, the route template creates the BLoC through `BlocProvider(create: ...)`. For GetIt, the generated screen BLoC is registered as a factory so each route instance receives a new BLoC. `BlocProvider` owns and closes the instance it creates when the provider is disposed.
 
-The dependency injection setup should reuse the API client's Dio instance rather than creating multiple Dio instances. This allows configured headers, interceptors, timeouts, and other client settings to be shared.
+Repository and use-case registrations are intended to be reusable feature dependencies. Review the generated feature DI file when adding multiple screens that share data/domain dependencies, and verify that the registrations are unique in your project.
 
-Review generated registrations and constructor dependencies when integrating the generated code into an existing application.
+For Dio, the generated DI initializer registers the `Dio` reference from the configured `ApiClient`; do not create a second independent Dio instance for individual features. Datasources should receive the registered instance through constructor injection.
 
-## Generated code and customization
+## Dependencies and code generation
 
-`bloc_cli` is intended to reduce repetitive setup, not to replace application-specific development.
+The CLI adds supported runtime and development dependencies to the target project's `pubspec.yaml` and attempts to run `flutter pub get` when it changes the manifest.
 
-After generating a feature:
-
-1. Review the generated files.
-2. Add your API endpoints and request/response models.
-3. Implement business rules and validation.
-4. Connect datasource and repository methods.
-5. Add application-specific dependency registrations.
-6. Review route declarations and page imports.
-7. Run code generation where required by your selected serialization option.
-8. Run analysis and tests before committing.
-
-Existing files are preserved by default. Use `--force` only when you intend to regenerate files.
-
-## Commands
-
-| Command | Description |
-|---|---|
-| `bloc_cli --help` | Display available commands and usage |
-| `bloc_cli --version` | Display the installed CLI version |
-| `bloc_cli init` | Initialize the project architecture |
-| `bloc_cli create feature <name>` | Generate a feature |
-| `bloc_cli create feature <name> --force` | Regenerate existing feature files |
-
-## Troubleshooting
-
-### `bloc_cli` is not recognized
-
-Make sure the Dart Pub cache executable directory is on PATH:
-
-```text
-%LOCALAPPDATA%\Pub\Cache\bin
-```
-
-Then restart your terminal.
-
-### Dependencies are not added
-
-Check the selected networking, routing, state management, and serialization options in `.bloc_cli.json`.
-
-Run the following from your Flutter project:
-
-```bash
-flutter pub get
-```
-
-If you use FVM:
+For projects using FVM, run dependency resolution with the project's FVM Flutter SDK if needed:
 
 ```bash
 fvm flutter pub get
 ```
 
-### Existing files were not regenerated
-
-The CLI preserves existing files by default. Use `--force` only when you want to overwrite generated files:
+For Freezed or json_serializable, run build_runner after generation when generated serialization files are required:
 
 ```bash
-bloc_cli create feature auth --force
+dart run build_runner build --delete-conflicting-outputs
 ```
 
-### Generated code has errors
+## Safe generation behavior
 
-Check that:
+- Existing files are preserved by default.
+- `--force` overwrites files targeted by the selected generator.
+- Route and DI marker comments are used for generated registration blocks.
+- Review diffs before committing generated changes.
+- Keep `.bloc_cli.json` under version control if your team wants consistent generation settings.
 
-- The selected dependencies are present in `pubspec.yaml`.
-- `flutter pub get` completed successfully.
-- Required code generation commands have been run.
-- Generated imports and route declarations match your actual project structure.
-- Your existing classes and constructor signatures match the generated registrations.
-
-## Contributing
-
-Contributions, bug reports, and feature requests are welcome.
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make your changes.
-4. Run formatting, analysis, and tests.
-5. Open a pull request with a clear description.
+## Development
 
 ```bash
+dart pub get
 dart format .
 dart analyze
 dart test
 ```
 
-## Issues and feature requests
+Run the CLI locally:
 
-Report bugs and request features:
+```bash
+dart run bin/bloc_cli.dart --help
+```
 
-[GitHub Issues](https://github.com/YOUR_USERNAME/bloc_cli_scaffold/issues)
+## Known limitations
+
+- Generated datasource endpoints and response fields are starter examples; replace them with your API contract.
+- Existing `main.dart` integration is conservative and may print manual integration guidance when it cannot safely identify the app root.
+- Manual and custom DI/routing strategies may require hand-written integration.
+- Review local-only and combined datasource templates before using them in production.
+- Generated code must be analyzed and tested inside the target Flutter application; the CLI package cannot infer all application-specific constructors or route conventions.
+
+## Contributing
+
+Issues and pull requests are welcome. Please include reproduction steps, the selected `.bloc_cli.json` configuration, and the generated file tree when reporting a generator bug.
+
+1. Fork the repository.
+2. Create a focused branch.
+3. Add or update tests for the generator behavior.
+4. Run formatting, analysis, and tests.
+5. Open a pull request with a concise explanation.
 
 ## License
 
-This project is distributed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-**Note:** `bloc_cli` generates starter code. Always review, test, and adapt generated code to your application's requirements before using it in production.
-
-## License
-
-This project is licensed under the MIT License.
-See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.

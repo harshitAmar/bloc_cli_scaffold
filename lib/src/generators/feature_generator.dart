@@ -4,12 +4,18 @@ import '../config/project_config.dart';
 import '../utils/console.dart';
 import '../utils/project.dart';
 
+/// Generates Clean Architecture layers for a feature.
 class FeatureGenerator {
+  /// Creates a generator for [root] using [config].
   FeatureGenerator({required this.root, required this.config});
 
+  /// Root directory of the Flutter project being generated.
   final Directory root;
+  /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
+  /// Creates the feature named [rawName]. Existing files are preserved unless
+  /// [overwrite] is true.
   Future<void> generate(String rawName, {bool overwrite = false}) async {
     final feature = Project.snakeCase(rawName);
     if (feature.isEmpty) {
@@ -79,6 +85,7 @@ class ${c}Entity {
   String _repository(String f, String c) => '''
 import '../entities/${f}_entity.dart';
 
+/// Domain contract for ${f} feature data operations.
 abstract interface class ${c}Repository {
   Future<${c}Entity> get${c}();
 }
@@ -88,6 +95,7 @@ abstract interface class ${c}Repository {
 import '../entities/${f}_entity.dart';
 import '../repositories/${f}_repository.dart';
 
+/// Retrieves the primary ${f} feature entity.
 class Get${c}UseCase {
   const Get${c}UseCase(this._repository);
 
@@ -267,6 +275,7 @@ import '../../domain/usecases/get_${f}_usecase.dart';
 import '${f}_event.dart';
 import '${f}_state.dart';
 
+/// Coordinates ${f} feature events and presentation state.
 class ${c}Bloc extends Bloc<${c}Event, ${c}State> {
   ${c}Bloc(this._get${c})
       : super(const ${c}Initial()) {
@@ -298,6 +307,7 @@ import '../bloc/${f}_bloc.dart';
 import '../bloc/${f}_event.dart';
 import '../bloc/${f}_state.dart';
 
+/// Default page generated for the ${f} feature.
 class ${c}Page extends StatelessWidget {
   const ${c}Page({super.key});
 
