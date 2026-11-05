@@ -18,3 +18,5 @@ environment:
 
 executables:
   bloc_cli: bloc_cli
+
+license: MIT
