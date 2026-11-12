@@ -1,4 +1,4 @@
-import 'package:bloc_cli_scaffold/src/config/project_config.dart';
+import 'package:bloc_cli/src/config/project_config.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -12,6 +12,7 @@ void main() {
         dependencyInjection: 'getit',
         dataSource: 'remote',
         serialization: 'json_serializable',
+        errorHandling: 'base_repository',
       );
 
       final restored = ProjectConfig.fromJson(config.toJson());
@@ -21,6 +22,7 @@ void main() {
       expect(restored.routing, 'go_router');
       expect(restored.hasRoutePaths, isTrue);
       expect(restored.hasRouteNames, isTrue);
+      expect(restored.errorHandling, 'base_repository');
     });
 
     test('normalizes legacy routing and datasource values', () {
@@ -39,6 +41,23 @@ void main() {
       expect(config.routing, 'flutter_default_navigator');
       expect(config.navigationStyle, 'route_paths');
       expect(config.dataSource, 'both');
+      expect(config.errorHandling, 'base_repository');
+    });
+
+    test('persists the selected API error handling strategy', () {
+      final config = ProjectConfig.fromJson({
+        'stateStyle': 'equatable',
+        'networking': 'dio',
+        'routing': 'go_router',
+        'navigationStyle': 'both',
+        'dependencyInjection': 'getit',
+        'dataSource': 'remote',
+        'serialization': 'json_serializable',
+        'errorHandling': 'exceptions',
+      });
+
+      expect(config.errorHandling, 'exceptions');
+      expect(config.toJson()['errorHandling'], 'exceptions');
     });
   });
 }

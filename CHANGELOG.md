@@ -1,3 +1,11 @@
+# 1.0.1
+
+- Added configurable centralized API error handling.
+- Added constructor-injected Dio BaseRepository with shared response/error mapping.
+- Updated generated Dio feature and screen datasources to use the shared BaseRepository when selected.
+- Added generic API envelope unwrapping and ApiResult safe-call support.
+- Updated package metadata and executable imports for the `bloc_cli` package name.
+
 # 1.0.0
 - Added application entry-point generation and guarded integration for an existing `lib/main.dart`.
 - Added screen generation inside an existing feature.

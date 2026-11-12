@@ -35,7 +35,7 @@ class BlocCli {
       case 'version':
       case '--version':
       case '-v':
-        Console.info('bloc_cli 0.1.6');
+        Console.info('bloc_cli 1.0.1');
         return;
       default:
         Console.error('Unknown command: ${args.first}');
@@ -129,6 +129,16 @@ class BlocCli {
         ],
         defaults: 0);
 
+    final errorHandling = Console.choose(
+        'API error handling',
+        [
+          'BaseRepository (centralized errors)',
+          'Exceptions (throw ApiException)',
+          'Custom',
+          'None',
+        ],
+        defaults: 0);
+
     final config = ProjectConfig(
       stateStyle: switch (state) {
         'Freezed' => 'freezed',
@@ -157,6 +167,12 @@ class BlocCli {
       },
       dataSource: dataSource.toLowerCase(),
       serialization: serialization.toLowerCase(),
+      errorHandling: switch (errorHandling) {
+        'Exceptions (throw ApiException)' => 'exceptions',
+        'Custom' => 'custom',
+        'None' => 'none',
+        _ => 'base_repository',
+      },
     );
 
     final configFile = File('${root.path}/.bloc_cli.json');
@@ -175,14 +191,16 @@ class BlocCli {
 
   static Future<void> _create(List<String> args) async {
     if (args.length < 2) {
-      Console.error('Usage: bloc_cli create feature <name> | create screen <name> --feature <feature>');
+      Console.error(
+          'Usage: bloc_cli create feature <name> | create screen <name> --feature <feature>');
       return;
     }
 
     final type = args[0];
     final name = args[1];
     final flags = args.skip(2).toList();
-    final overwrite = flags.contains('--force') || flags.contains('--overwrite');
+    final overwrite =
+        flags.contains('--force') || flags.contains('--overwrite');
     final withBloc = flags.contains('--with-bloc');
     final withRepository = flags.contains('--with-repository');
     String? featureName;
@@ -216,12 +234,15 @@ class BlocCli {
           name,
           overwrite: overwrite,
         );
-        await RoutingGenerator(root: root, config: config).registerFeature(name);
-        await NetworkingGenerator(root: root, config: config).registerFeature(name);
+        await RoutingGenerator(root: root, config: config)
+            .registerFeature(name);
+        await NetworkingGenerator(root: root, config: config)
+            .registerFeature(name);
         return;
       case 'screen':
         if (featureName == null || featureName.trim().isEmpty) {
-          Console.error('Missing --feature. Example: bloc_cli create screen profile --feature auth');
+          Console.error(
+              'Missing --feature. Example: bloc_cli create screen profile --feature auth');
           return;
         }
         await ScreenGenerator(root: root, config: config).generate(
@@ -268,13 +289,13 @@ class BlocCli {
     stdout.writeln('Commands:');
     stdout.writeln(
         '  bloc_cli init                         Configure a Flutter project');
-    stdout.writeln('  bloc_cli create feature <name> [--force]  Generate a Clean Architecture feature');
-    stdout.writeln('  bloc_cli create screen <name> --feature <feature> [--with-bloc] [--with-repository] [--force]');
-    stdout.writeln('                                         Generate a screen inside an existing feature');
+    stdout.writeln(
+        '  bloc_cli create feature <name> [--force]  Generate a Clean Architecture feature');
+    stdout.writeln(
+        '  bloc_cli create screen <name> --feature <feature> [--with-bloc] [--with-repository] [--force]');
+    stdout.writeln(
+        '                                         Generate a screen inside an existing feature');
     stdout.writeln('  bloc_cli help                         Show this help');
     stdout.writeln('  bloc_cli version                      Show version');
   }
 }
-
-
-

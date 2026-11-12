@@ -18,7 +18,9 @@ class Project {
         .replaceAll(RegExp(r'([a-z0-9])([A-Z])'), r'$1 $2')
         .split(RegExp(r'[^a-zA-Z0-9]+'))
         .where((e) => e.isNotEmpty);
-    return words.map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase()).join();
+    return words
+        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join();
   }
 
   /// Converts [input] to a lowercase snake_case identifier.

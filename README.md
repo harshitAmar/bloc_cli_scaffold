@@ -12,7 +12,7 @@ A configurable Flutter CLI that scaffolds Clean Architecture features, screens, 
 - Optional screen-scoped BLoC generation.
 - Optional screen repository, use-case, model, and datasource templates.
 - Dio and HTTP networking templates.
-- API client, API result, and base repository templates.
+- API client, API result, and constructor-injected BaseRepository templates.
 - GoRouter and Flutter Navigator route generation.
 - Route path and route name constants.
 - GetIt dependency registration templates.
@@ -50,7 +50,7 @@ On Windows, if the command is not recognized, add this directory to PATH and res
 
 ```bash
 git clone https://github.com/harshitAmar/bloc_cli_scaffold.git
-cd bloc_cli
+cd bloc_cli_scaffold
 dart pub get
 dart pub global activate --source path .
 ```
@@ -131,7 +131,8 @@ Example:
   "navigationStyle": "both",
   "dependencyInjection": "getit",
   "dataSource": "remote",
-  "serialization": "json_serializable"
+  "serialization": "json_serializable",
+  "errorHandling": "base_repository"
 }
 ```
 
@@ -147,7 +148,7 @@ Available choices:
 | Datasource | Remote, Local, Both, Custom, None |
 | Serialization | json_serializable, Freezed, Manual, Custom |
 
-Some custom/manual integrations require application-specific wiring. Review the generated code and the console instructions for the selected options. In this release, automatic DI integration is primarily implemented for GetIt; do not assume that selecting Manual, Custom, or Injectable produces the same generated behavior as plain GetIt.
+Some custom/manual integrations require application-specific wiring. Review the generated code and the console instructions for the selected options. In this release, automatic DI integration is primarily implemented for GetIt; do not assume that selecting Manual, Custom, or Injectable produces the same generated behavior as plain GetIt. The `BaseRepository` strategy is implemented for Dio-backed generated datasources; HTTP, Custom, and None networking choices keep their own integration path.
 
 ## Generated structure
 
@@ -189,7 +190,7 @@ When a screen is generated with `--with-bloc`, the route template creates the BL
 
 Repository and use-case registrations are intended to be reusable feature dependencies. Review the generated feature DI file when adding multiple screens that share data/domain dependencies, and verify that the registrations are unique in your project.
 
-For Dio, the generated DI initializer registers the `Dio` reference from the configured `ApiClient`; do not create a second independent Dio instance for individual features. Datasources should receive the registered instance through constructor injection.
+For Dio, the generated DI initializer registers the `Dio` reference from the configured `ApiClient`; do not create a second independent Dio instance for individual features. Datasources should receive the registered instance through constructor injection. With `BaseRepository` error handling selected, generated Dio datasources extend `BaseRepository` and use its shared `handleApiCall` pipeline. `BaseRepository` receives Dio through its constructor; it does not perform a hidden GetIt lookup. `handleApiCall` maps transport and server errors to `ApiException`, while `safeApiCall` is available when a caller wants an `ApiResult<T>` instead of thrown exceptions.
 
 ## Dependencies and code generation
 
@@ -233,6 +234,7 @@ dart run bin/bloc_cli.dart --help
 ## Known limitations
 
 - Generated datasource endpoints and response fields are starter examples; replace them with your API contract.
+- The shared BaseRepository template currently targets Dio. HTTP and custom networking require their own error adapter.
 - Existing `main.dart` integration is conservative and may print manual integration guidance when it cannot safely identify the app root.
 - Manual and custom DI/routing strategies may require hand-written integration.
 - Review local-only and combined datasource templates before using them in production.

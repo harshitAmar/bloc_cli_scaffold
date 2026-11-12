@@ -10,6 +10,7 @@ class ApplicationGenerator {
 
   /// Root directory of the Flutter project being generated.
   final Directory root;
+
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
@@ -91,7 +92,8 @@ class MyApp extends StatelessWidget {
     if (config.networking == 'dio' &&
         (config.dependencyInjection == 'getit' ||
             config.dependencyInjection == 'getit_injectable')) {
-      Console.info('Set API_BASE_URL using --dart-define=API_BASE_URL=https://your-api.com.');
+      Console.info(
+          'Set API_BASE_URL using --dart-define=API_BASE_URL=https://your-api.com.');
     }
   }
 
@@ -121,7 +123,8 @@ class MyApp extends StatelessWidget {
 
     for (final import in imports) {
       if (!source.contains(import)) {
-        final importMatches = RegExp(r"import '[^']+';").allMatches(source).toList();
+        final importMatches =
+            RegExp(r"import '[^']+';").allMatches(source).toList();
         if (importMatches.isNotEmpty) {
           final last = importMatches.last;
           source = source.replaceRange(last.end, last.end, '\n$import');
@@ -137,8 +140,10 @@ class MyApp extends StatelessWidget {
       return;
     }
     final isAsync = updatedMatch.group(2) != null;
-    final signature = isAsync ? updatedMatch.group(0)! : 'Future<void> main() async {';
-    source = source.replaceRange(updatedMatch.start, updatedMatch.end, signature);
+    final signature =
+        isAsync ? updatedMatch.group(0)! : 'Future<void> main() async {';
+    source =
+        source.replaceRange(updatedMatch.start, updatedMatch.end, signature);
 
     final initialization = <String>[
       '  WidgetsFlutterBinding.ensureInitialized();',
@@ -173,7 +178,8 @@ class MyApp extends StatelessWidget {
         );
       }
     } else if (config.usesNavigator) {
-      if (source.contains('MaterialApp(') && !source.contains('routes: appRoutes')) {
+      if (source.contains('MaterialApp(') &&
+          !source.contains('routes: appRoutes')) {
         source = source.replaceFirst(
           'MaterialApp(',
           "MaterialApp(\n      routes: appRoutes,",
@@ -185,7 +191,7 @@ class MyApp extends StatelessWidget {
     }
 
     await file.writeAsString(source);
-    Console.success('Integrated bloc_cli initialization into existing lib/main.dart.');
+    Console.success(
+        'Integrated bloc_cli initialization into existing lib/main.dart.');
   }
-
 }

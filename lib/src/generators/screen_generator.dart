@@ -11,6 +11,7 @@ class ScreenGenerator {
 
   /// Root directory of the Flutter project being generated.
   final Directory root;
+
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
@@ -29,13 +30,15 @@ class ScreenGenerator {
     final feature = Project.snakeCase(rawFeatureName);
     final screen = Project.snakeCase(rawScreenName);
     if (feature.isEmpty || screen.isEmpty) {
-      Console.error('Feature and screen names must contain letters or numbers.');
+      Console.error(
+          'Feature and screen names must contain letters or numbers.');
       return;
     }
 
     final featureRoot = Directory('${root.path}/lib/features/$feature');
     if (!await featureRoot.exists()) {
-      Console.error('Feature "$feature" does not exist. Create it first with: bloc_cli create feature $feature');
+      Console.error(
+          'Feature "$feature" does not exist. Create it first with: bloc_cli create feature $feature');
       return;
     }
 
@@ -78,9 +81,11 @@ class ScreenGenerator {
     }
 
     Console.success('Screen "$screen" generated in lib/features/$feature.');
-    Console.info('Created $created file(s); preserved $preserved existing file(s).');
+    Console.info(
+        'Created $created file(s); preserved $preserved existing file(s).');
     if (withRepository) {
-      Console.info('Generated the screen repository chain. Connect the endpoint and response model to your API.');
+      Console.info(
+          'Generated the screen repository chain. Connect the endpoint and response model to your API.');
     }
   }
 
@@ -232,7 +237,24 @@ class ${c}Model extends ${c}Entity {
 }
 ''';
     final ds = config.networking == 'dio'
-        ? '''import 'package:dio/dio.dart';
+        ? config.errorHandling == 'base_repository'
+            ? '''import 'package:dio/dio.dart';
+import '../../../../core/network/base_repository.dart';
+import '../models/${screen}_model.dart';
+
+class ${c}RemoteDataSource extends BaseRepository {
+  const ${c}RemoteDataSource(super.dio);
+
+  Future<${c}Model> get${c}() {
+    return handleApiCall<${c}Model>(
+      request: () => dio.get('/${screen}'),
+      fromJson: (json) =>
+          ${c}Model.fromJson(json as Map<String, dynamic>),
+    );
+  }
+}
+'''
+            : '''import 'package:dio/dio.dart';
 import '../models/${screen}_model.dart';
 
 class ${c}RemoteDataSource {
@@ -241,7 +263,10 @@ class ${c}RemoteDataSource {
 
   Future<${c}Model> get${c}() async {
     final response = await _dio.get('/${screen}');
-    return ${c}Model.fromJson(response.data as Map<String, dynamic>);
+    final raw = response.data is Map && (response.data as Map).containsKey('data')
+        ? (response.data as Map)['data']
+        : response.data;
+    return ${c}Model.fromJson(raw as Map<String, dynamic>);
   }
 }
 '''
@@ -285,7 +310,8 @@ class ${c}RepositoryImpl implements ${c}Repository {
       'data/repositories/${screen}_repository_impl.dart': repoImpl,
       if (remote) 'data/datasources/${screen}_remote_datasource.dart': ds,
       if (config.dataSource == 'local' || config.dataSource == 'both')
-        'data/datasources/${screen}_local_datasource.dart': '''import '../models/${screen}_model.dart';
+        'data/datasources/${screen}_local_datasource.dart':
+            '''import '../models/${screen}_model.dart';
 
 abstract interface class ${c}LocalDataSource {
   Future<${c}Model?> read();
@@ -303,28 +329,32 @@ abstract interface class ${c}LocalDataSource {
     String c,
     bool withBloc,
   ) async {
-    final routes = File('${root.path}/lib/features/$feature/${feature}_routes.dart');
+    final routes =
+        File('${root.path}/lib/features/$feature/${feature}_routes.dart');
     if (!await routes.exists()) {
-      Console.info('Feature route file not found; skipped automatic screen route registration.');
+      Console.info(
+          'Feature route file not found; skipped automatic screen route registration.');
       return;
     }
     var source = await routes.readAsString();
     final pageImport = "import 'presentation/pages/${screen}_page.dart';";
     if (!source.contains(pageImport)) {
-      final importMatches = RegExp(r"import '[^']+';").allMatches(source).toList();
+      final importMatches =
+          RegExp(r"import '[^']+';").allMatches(source).toList();
       if (importMatches.isNotEmpty) {
         final lastImport = importMatches.last;
-        source = source.replaceRange(lastImport.end, lastImport.end, '\n$pageImport');
+        source = source.replaceRange(
+            lastImport.end, lastImport.end, '\n$pageImport');
       } else {
         source = '$pageImport\n$source';
       }
     }
     final routeName = '${feature}_${screen}';
-    final pathName = config.hasRoutePaths ? 'AppRoutes.$routeName' : "'/$feature/$screen'";
-    final nameValue = config.hasRouteNames ? 'AppRouteNames.$routeName' : "'$routeName'";
-    final blocFactory = _usesGetIt
-        ? 'getIt<${c}Bloc>()'
-        : '${c}Bloc()';
+    final pathName =
+        config.hasRoutePaths ? 'AppRoutes.$routeName' : "'/$feature/$screen'";
+    final nameValue =
+        config.hasRouteNames ? 'AppRouteNames.$routeName' : "'$routeName'";
+    final blocFactory = _usesGetIt ? 'getIt<${c}Bloc>()' : '${c}Bloc()';
     final builder = withBloc
         ? '''builder: (context, state) => BlocProvider(
         create: (_) => $blocFactory,
@@ -333,14 +363,18 @@ abstract interface class ${c}LocalDataSource {
         : 'builder: (context, state) => const ${c}Page(),';
 
     if (withBloc) {
-      if (!source.contains("import 'package:flutter_bloc/flutter_bloc.dart';")) {
+      if (!source
+          .contains("import 'package:flutter_bloc/flutter_bloc.dart';")) {
         source = "import 'package:flutter_bloc/flutter_bloc.dart';\n$source";
       }
-      if (_usesGetIt && !source.contains("import '../../core/di/injection.dart';")) {
+      if (_usesGetIt &&
+          !source.contains("import '../../core/di/injection.dart';")) {
         source = "import '../../core/di/injection.dart';\n$source";
       }
-      if (!source.contains("import 'presentation/bloc/$screen/${screen}_bloc.dart';")) {
-        source = "import 'presentation/bloc/$screen/${screen}_bloc.dart';\n$source";
+      if (!source.contains(
+          "import 'presentation/bloc/$screen/${screen}_bloc.dart';")) {
+        source =
+            "import 'presentation/bloc/$screen/${screen}_bloc.dart';\n$source";
       }
     }
     if (config.usesGoRouter) {
@@ -368,22 +402,27 @@ abstract interface class ${c}LocalDataSource {
     if (await constants.exists()) {
       var routeSource = await constants.readAsString();
       if (config.hasRoutePaths) {
-        routeSource = _insertConstant(routeSource, '_Routes', routeName, "'/$feature/$screen'");
-        routeSource = _insertConstant(routeSource, 'AppRoutes', routeName, '_Routes.$routeName');
+        routeSource = _insertConstant(
+            routeSource, '_Routes', routeName, "'/$feature/$screen'");
+        routeSource = _insertConstant(
+            routeSource, 'AppRoutes', routeName, '_Routes.$routeName');
       }
       if (config.hasRouteNames) {
-        routeSource = _insertConstant(routeSource, 'AppRouteNames', routeName, "'$routeName'");
+        routeSource = _insertConstant(
+            routeSource, 'AppRouteNames', routeName, "'$routeName'");
       }
       await constants.writeAsString(routeSource);
     }
   }
 
-  String _insertConstant(String source, String className, String name, String value) {
+  String _insertConstant(
+      String source, String className, String name, String value) {
     if (source.contains('static const String $name =')) return source;
     final pattern = RegExp('class $className \\{([\\s\\S]*?)\n\\}');
     final match = pattern.firstMatch(source);
     if (match == null) return source;
-    final replacement = 'class $className {${match.group(1)}\n  static const String $name = $value;\n}';
+    final replacement =
+        'class $className {${match.group(1)}\n  static const String $name = $value;\n}';
     return source.replaceRange(match.start, match.end, replacement);
   }
 
@@ -395,7 +434,8 @@ abstract interface class ${c}LocalDataSource {
   ) async {
     final di = File('${root.path}/lib/features/$feature/${feature}_di.dart');
     if (!await di.exists()) {
-      Console.info('Feature DI file not found; skipped automatic BLoC registration.');
+      Console.info(
+          'Feature DI file not found; skipped automatic BLoC registration.');
       return;
     }
 
@@ -446,9 +486,7 @@ abstract interface class ${c}LocalDataSource {
       );
     }
 
-    final blocFactory = withRepository
-        ? 'getIt<Get${c}UseCase>()'
-        : '';
+    final blocFactory = withRepository ? 'getIt<Get${c}UseCase>()' : '';
     registrations.add(
       withRepository && dioRemote
           ? '  if (!getIt.isRegistered<${c}Bloc>()) getIt.registerFactory<${c}Bloc>(() => ${c}Bloc($blocFactory));'
@@ -462,7 +500,8 @@ abstract interface class ${c}LocalDataSource {
     );
     final match = functionPattern.firstMatch(source);
     if (match == null) {
-      Console.info('Could not locate feature DI registration function; add screen registrations manually.');
+      Console.info(
+          'Could not locate feature DI registration function; add screen registrations manually.');
       return;
     }
 
@@ -478,7 +517,7 @@ abstract interface class ${c}LocalDataSource {
       '${match.group(1)}$body\n}',
     );
     await di.writeAsString(source);
-    Console.success('Registered $c screen dependencies with factory-scoped BLoC lifecycle.');
+    Console.success(
+        'Registered $c screen dependencies with factory-scoped BLoC lifecycle.');
   }
-
 }

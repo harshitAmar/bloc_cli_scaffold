@@ -238,80 +238,110 @@ final class ApiFailure<T> extends ApiResult<T> {
 ''',
     'base_repository.dart': r'''
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-
-import '../di/injection.dart';
 import 'api_exception.dart';
-import 'api_response.dart';
 import 'api_result.dart';
 
+/// Shared API execution and error handling for Dio-backed data sources.
+///
+/// Inject the same configured [Dio] instance used by [ApiClient]. This avoids
+/// hidden service-locator lookups and keeps request configuration consistent.
 abstract class BaseRepository {
-  Dio dio = getIt<Dio>();
+  const BaseRepository(this.dio);
 
-  Future<ApiResult<T>> safeApiCall<T>(Future<T> Function() request) async {
+  final Dio dio;
+
+  /// Executes a request and maps transport/server errors to [ApiException].
+  ///
+  /// [fromJson] receives the `data` field when the server uses a standard
+  /// `{ success/status, message, data }` envelope. Otherwise it receives the
+  /// complete response body. Lists, maps, primitives and empty responses can
+  /// be handled by supplying an appropriate decoder.
+  Future<T> handleApiCall<T>({
+    required Future<Response<dynamic>> Function() request,
+    required T Function(dynamic json) fromJson,
+    bool useEnvelope = true,
+  }) async {
     try {
-      final result = await request();
-      return ApiResult<T>.success(result);
+      final response = await request();
+      final raw = response.data;
+      if (response.statusCode != null &&
+          (response.statusCode! < 200 || response.statusCode! >= 300)) {
+        throw ApiException(
+          _messageFromBody(raw) ??
+              'Request failed with status code ${response.statusCode}.',
+          statusCode: response.statusCode,
+        );
+      }
+
+      final payload = useEnvelope ? _unwrapEnvelope(raw) : raw;
+      return fromJson(payload);
     } on DioException catch (error) {
-      final apiError = ApiException.fromDioError(error);
-      debugPrint('API Error: ${apiError.message}');
-      debugPrint('Status Code: ${error.response?.statusCode}');
-      debugPrint('Response Data: ${error.response?.data}');
-      return ApiResult<T>.failure(
-        apiError.message,
-        statusCode: apiError.statusCode,
+      throw ApiException.fromDioError(error);
+    } on ApiException {
+      rethrow;
+    } catch (error) {
+      throw ApiException(
+        error.toString().replaceFirst('Exception: ', ''),
       );
+    }
+  }
+
+  /// Returns an [ApiResult] instead of throwing mapped API failures.
+  Future<ApiResult<T>> safeApiCall<T>(
+    Future<T> Function() request,
+  ) async {
+    try {
+      return ApiResult<T>.success(await request());
     } on ApiException catch (error) {
       return ApiResult<T>.failure(
         error.message,
         statusCode: error.statusCode,
       );
+    } on DioException catch (error) {
+      final mapped = ApiException.fromDioError(error);
+      return ApiResult<T>.failure(
+        mapped.message,
+        statusCode: mapped.statusCode,
+      );
     } catch (error) {
-      debugPrint('Unexpected Error: $error');
       return ApiResult<T>.failure(
         error.toString().replaceFirst('Exception: ', ''),
       );
     }
   }
 
-  Future<ApiResult<T>> handleApiCall<T>(
-    Future<Response<dynamic>> Function() request,
-    T Function(dynamic json) fromJson,
-  ) {
-    return safeApiCall<T>(() async {
-      final response = await request();
-      final raw = response.data;
-      if (raw is! Map<String, dynamic>) {
-        throw const ApiException('Invalid server response.');
+  dynamic _unwrapEnvelope(dynamic body) {
+    if (body is Map) {
+      final status = body['success'] ?? body['status'];
+      if (status == false) {
+        throw ApiException(
+          _messageFromBody(body) ?? 'Request failed.',
+        );
       }
-      final apiResponse = ApiResponse<T>.fromJson(raw, fromJson);
-      if (!apiResponse.status) {
-        var message = apiResponse.message;
-        final errors = raw['errors'];
-        if (errors is Map && errors.isNotEmpty) {
-          final messages = <String>[];
-          for (final value in errors.values) {
-            if (value is List) {
-              messages.addAll(value.map((item) => item.toString()));
-            } else {
-              messages.add(value.toString());
-            }
-          }
-          if (messages.isNotEmpty) {
-            message = messages.join('\n');
-          }
+      if (body.containsKey('data')) return body['data'];
+    }
+    return body;
+  }
+
+  String? _messageFromBody(dynamic body) {
+    if (body is! Map) return null;
+    final errors = body['errors'];
+    if (errors is Map && errors.isNotEmpty) {
+      final messages = <String>[];
+      for (final value in errors.values) {
+        if (value is List) {
+          messages.addAll(value.map((item) => item.toString()));
+        } else {
+          messages.add(value.toString());
         }
-        throw ApiException(message.isEmpty ? 'Request failed.' : message);
       }
-      final data = apiResponse.data;
-      if (data == null) {
-        throw const ApiException('Unexpected null data.');
-      }
-      return data;
-    });
+      if (messages.isNotEmpty) return messages.join('\\n');
+    }
+    final message = body['message']?.toString();
+    return message == null || message.isEmpty ? null : message;
   }
 }
-''',
+''',,
 
     'interceptors/auth_interceptor.dart': r'''
 import 'package:dio/dio.dart';

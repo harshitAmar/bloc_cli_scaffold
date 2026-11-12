@@ -1,4 +1,3 @@
-
 import 'dart:io';
 
 import '../config/project_config.dart';
@@ -12,13 +11,15 @@ class RoutingGenerator {
 
   /// Root directory of the Flutter project being generated.
   final Directory root;
+
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
   /// Creates the selected root routing files without replacing existing files.
   Future<void> generateCoreFiles() async {
     if (!config.usesBuiltInRouting) {
-      Console.info('Routing files skipped (${config.routing}); routing is managed by the project.');
+      Console.info(
+          'Routing files skipped (${config.routing}); routing is managed by the project.');
       return;
     }
 
@@ -42,7 +43,8 @@ class RoutingGenerator {
       out.writeln('class AppRoutes {');
       out.writeln('  AppRoutes._();');
       for (final entry in routeMap.entries) {
-        out.writeln('  static const String ${entry.key} = _Routes.${entry.key};');
+        out.writeln(
+            '  static const String ${entry.key} = _Routes.${entry.key};');
       }
       out.writeln('}');
       out.writeln();
@@ -133,7 +135,9 @@ final Map<String, WidgetBuilder> appRoutes = {
     }
     if (!source.contains('// <bloc_cli:feature-routes>')) {
       source = source.replaceFirst(
-        goRouter ? 'routes: [' : 'final Map<String, WidgetBuilder> appRoutes = {',
+        goRouter
+            ? 'routes: ['
+            : 'final Map<String, WidgetBuilder> appRoutes = {',
         goRouter
             ? 'routes: [\n    // <bloc_cli:feature-routes>\n    // </bloc_cli:feature-routes>'
             : 'final Map<String, WidgetBuilder> appRoutes = {\n  // <bloc_cli:feature-routes>\n  // </bloc_cli:feature-routes>',
@@ -156,7 +160,8 @@ final Map<String, WidgetBuilder> appRoutes = {
     final appRoutesFile = File('${root.path}/lib/core/routes/app_routes.dart');
     if (await appRoutesFile.exists()) {
       var routeSource = await appRoutesFile.readAsString();
-      if (config.hasRoutePaths && !routeSource.contains('static const String $feature =')) {
+      if (config.hasRoutePaths &&
+          !routeSource.contains('static const String $feature =')) {
         routeSource = routeSource.replaceFirst(
           'class _Routes {',
           "class _Routes {\n  static const String $feature = '/$feature';",
@@ -175,7 +180,8 @@ final Map<String, WidgetBuilder> appRoutes = {
       }
       await appRoutesFile.writeAsString(routeSource);
     }
-    final routesFile = File('${root.path}/lib/features/$feature/${feature}_routes.dart');
+    final routesFile =
+        File('${root.path}/lib/features/$feature/${feature}_routes.dart');
     await routesFile.parent.create(recursive: true);
 
     if (!await routesFile.exists()) {
@@ -188,7 +194,7 @@ import 'presentation/pages/${feature}_page.dart';
 final List<RouteBase> ${feature}Routes = [
   GoRoute(
     path: ${config.hasRoutePaths ? 'AppRoutes.$feature' : "'/$feature'"},
-    name: ${config.hasRouteNames ? 'AppRouteNames.$feature' : "'$feature'" },
+    name: ${config.hasRouteNames ? 'AppRouteNames.$feature' : "'$feature'"},
     builder: (context, state) => const ${className}Page(),
   ),
 ];
@@ -206,7 +212,8 @@ final Map<String, WidgetBuilder> ${feature}Routes = {
       }
     }
 
-    final router = File('${root.path}/lib/core/routes/${config.usesGoRouter ? 'app_router.dart' : 'app_navigator.dart'}');
+    final router = File(
+        '${root.path}/lib/core/routes/${config.usesGoRouter ? 'app_router.dart' : 'app_navigator.dart'}');
     if (!await router.exists()) {
       await generateCoreFiles();
     }
@@ -214,10 +221,14 @@ final Map<String, WidgetBuilder> ${feature}Routes = {
     var source = await router.readAsString();
     const importsMarker = '// <bloc_cli:feature-imports>';
     const routesMarker = '// <bloc_cli:feature-routes>';
-    final importLine = "import '../../features/$feature/${feature}_routes.dart';";
-    final routeLine = config.usesGoRouter ? '    ...${feature}Routes,' : '  ...${feature}Routes,';
+    final importLine =
+        "import '../../features/$feature/${feature}_routes.dart';";
+    final routeLine = config.usesGoRouter
+        ? '    ...${feature}Routes,'
+        : '  ...${feature}Routes,';
     if (!source.contains(importLine)) {
-      source = source.replaceFirst(importsMarker, '$importsMarker\n$importLine');
+      source =
+          source.replaceFirst(importsMarker, '$importsMarker\n$importLine');
     }
     if (!source.contains(routeLine)) {
       source = source.replaceFirst(routesMarker, '$routesMarker\n$routeLine');

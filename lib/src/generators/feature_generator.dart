@@ -11,6 +11,7 @@ class FeatureGenerator {
 
   /// Root directory of the Flutter project being generated.
   final Directory root;
+
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
@@ -341,6 +342,32 @@ class ${c}Page extends StatelessWidget {
 
   String _remoteDataSource(String f, String c) {
     if (config.networking == 'dio') {
+      if (config.errorHandling == 'base_repository') {
+        return '''
+import 'package:dio/dio.dart';
+import '../../../../core/network/base_repository.dart';
+import '../models/${f}_model.dart';
+
+abstract interface class ${c}RemoteDataSource {
+  Future<${c}Model> get${c}();
+}
+
+/// Uses the shared BaseRepository request/error pipeline.
+class ${c}RemoteDataSourceImpl extends BaseRepository
+    implements ${c}RemoteDataSource {
+  const ${c}RemoteDataSourceImpl(super.dio);
+
+  @override
+  Future<${c}Model> get${c}() {
+    return handleApiCall<${c}Model>(
+      request: () => dio.get('/${f}'),
+      fromJson: (json) =>
+          ${c}Model.fromJson(json as Map<String, dynamic>),
+    );
+  }
+}
+''';
+      }
       return '''
 import 'package:dio/dio.dart';
 import '../models/${f}_model.dart';
@@ -351,13 +378,15 @@ abstract interface class ${c}RemoteDataSource {
 
 class ${c}RemoteDataSourceImpl implements ${c}RemoteDataSource {
   const ${c}RemoteDataSourceImpl(this._dio);
-
   final Dio _dio;
 
   @override
   Future<${c}Model> get${c}() async {
     final response = await _dio.get('/${f}');
-    return ${c}Model.fromJson(response.data as Map<String, dynamic>);
+    final raw = response.data is Map && (response.data as Map).containsKey('data')
+        ? (response.data as Map)['data']
+        : response.data;
+    return ${c}Model.fromJson(raw as Map<String, dynamic>);
   }
 }
 ''';
