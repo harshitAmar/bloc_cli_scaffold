@@ -1,4 +1,4 @@
-import 'package:bloc_cli/src/config/project_config.dart';
+import 'package:bloc_cli_scaffold/src/config/project_config.dart';
 import 'package:test/test.dart';
 
 void main() {
