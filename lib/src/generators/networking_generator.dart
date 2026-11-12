@@ -10,12 +10,14 @@ class NetworkingGenerator {
 
   /// Root directory of the Flutter project being generated.
   final Directory root;
+
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
   /// Generates the selected networking client and updates dependencies.
   Future<void> generate() async {
-    final networkingEnabled = config.networking == 'dio' || config.networking == 'http';
+    final networkingEnabled =
+        config.networking == 'dio' || config.networking == 'http';
     if (!networkingEnabled) {
       Console.info('Networking files skipped (${config.networking}).');
     }
@@ -45,11 +47,13 @@ class NetworkingGenerator {
       if (config.networking == 'dio') 'dio': '^5.8.0',
       if (config.networking == 'http') 'http': '^1.3.0',
       if (config.dependencyInjection == 'getit' ||
-          config.dependencyInjection == 'getit_injectable') 'get_it': '^8.0.3',
+          config.dependencyInjection == 'getit_injectable')
+        'get_it': '^8.0.3',
       'flutter_bloc': '^9.1.1',
       if (config.stateStyle == 'equatable') 'equatable': '^2.0.7',
       if (config.routing == 'go_router') 'go_router': '^15.1.2',
-      if (config.serialization == 'json_serializable') 'json_annotation': '^4.9.0',
+      if (config.serialization == 'json_serializable')
+        'json_annotation': '^4.9.0',
       if (config.serialization == 'freezed') 'freezed_annotation': '^3.0.6',
     };
     final devDependencies = <String, String>{
@@ -69,17 +73,19 @@ class NetworkingGenerator {
     if (networkingEnabled) {
       Console.success('Networking files generated for ${config.networking}.');
     }
-    Console.info('Created $created file(s); preserved $preserved existing file(s).');
+    Console.info(
+        'Created $created file(s); preserved $preserved existing file(s).');
     if (dependencyAdded || devDependencyAdded) {
       Console.success('Updated pubspec.yaml dependencies.');
       await _runPubGet();
     } else {
-      Console.info('Required dependencies are already present or pubspec.yaml could not be updated.');
+      Console.info(
+          'Required dependencies are already present or pubspec.yaml could not be updated.');
     }
   }
 
   Map<String, String> _dioFiles() => {
-    'api_client.dart': r'''
+        'api_client.dart': r'''
 import 'package:dio/dio.dart';
 
 import 'interceptors/auth_interceptor.dart';
@@ -110,7 +116,7 @@ class ApiClient {
   final Dio dio;
 }
 ''',
-    'api_endpoints.dart': r'''
+        'api_endpoints.dart': r'''
 class ApiEndpoints {
   ApiEndpoints._();
 
@@ -123,7 +129,7 @@ class ApiEndpoints {
   // Add application-specific endpoints here.
 }
 ''',
-    'api_exception.dart': r'''
+        'api_exception.dart': r'''
 import 'package:dio/dio.dart';
 
 class ApiException implements Exception {
@@ -174,8 +180,7 @@ class ApiException implements Exception {
   String toString() => message;
 }
 ''',
-
-    'api_response.dart': r'''
+        'api_response.dart': r'''
 class ApiResponse<T> {
   const ApiResponse({
     required this.status,
@@ -204,7 +209,7 @@ class ApiResponse<T> {
   }
 }
 ''',
-    'api_result.dart': r'''
+        'api_result.dart': r'''
 sealed class ApiResult<T> {
   const ApiResult();
 
@@ -236,7 +241,7 @@ final class ApiFailure<T> extends ApiResult<T> {
   final int? statusCode;
 }
 ''',
-    'base_repository.dart': r'''
+        'base_repository.dart': r'''
 import 'package:dio/dio.dart';
 import 'api_exception.dart';
 import 'api_result.dart';
@@ -341,9 +346,8 @@ abstract class BaseRepository {
     return message == null || message.isEmpty ? null : message;
   }
 }
-''',,
-
-    'interceptors/auth_interceptor.dart': r'''
+''',
+        'interceptors/auth_interceptor.dart': r'''
 import 'package:dio/dio.dart';
 
 typedef TokenProvider = Future<String?> Function();
@@ -387,10 +391,10 @@ class AuthInterceptor extends Interceptor {
   }
 }
 ''',
-  };
+      };
 
   Map<String, String> _httpFiles() => {
-    'api_client.dart': r'''
+        'api_client.dart': r'''
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -453,7 +457,7 @@ class ApiClient {
   void close() => _client.close();
 }
 ''',
-    'api_endpoints.dart': r'''
+        'api_endpoints.dart': r'''
 class ApiEndpoints {
   ApiEndpoints._();
 
@@ -466,7 +470,7 @@ class ApiEndpoints {
   // Add application-specific endpoints here.
 }
 ''',
-    'api_exception.dart': r'''
+        'api_exception.dart': r'''
 class ApiException implements Exception {
   const ApiException(this.message, {this.statusCode});
 
@@ -484,8 +488,7 @@ class ApiException implements Exception {
   String toString() => message;
 }
 ''',
-
-    'api_response.dart': r'''
+        'api_response.dart': r'''
 class ApiResponse<T> {
   const ApiResponse({
     required this.status,
@@ -510,7 +513,7 @@ class ApiResponse<T> {
   }
 }
 ''',
-    'api_result.dart': r'''
+        'api_result.dart': r'''
 sealed class ApiResult<T> {
   const ApiResult();
 
@@ -542,7 +545,7 @@ final class ApiFailure<T> extends ApiResult<T> {
   final int? statusCode;
 }
 ''',
-    'base_repository.dart': r'''
+        'base_repository.dart': r'''
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -615,8 +618,7 @@ abstract class BaseRepository {
   }
 }
 ''',
-
-    'interceptors/auth_interceptor.dart': r'''
+        'interceptors/auth_interceptor.dart': r'''
 typedef TokenProvider = Future<String?> Function();
 
 class AuthInterceptor {
@@ -634,8 +636,7 @@ class AuthInterceptor {
   }
 }
 ''',
-  };
-
+      };
 
   String _injectionFile() {
     if (config.networking == 'dio') {
@@ -699,7 +700,6 @@ Future<void> configureDependencies() async {
 ''';
   }
 
-
   /// Adds the generated feature dependency module to the DI initializer.
   Future<void> registerFeature(String rawName) async {
     if (config.dependencyInjection != 'getit' &&
@@ -714,11 +714,18 @@ Future<void> configureDependencies() async {
     if (feature.isEmpty) {
       return;
     }
-    final className = feature.split('_').map((part) =>
-        part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1)).join();
-    final featureDi = File('${root.path}/lib/features/$feature/${feature}_di.dart');
-    final remoteEnabled = config.dataSource == 'remote' || config.dataSource == 'both';
-    final remoteImport = remoteEnabled ? "import 'data/datasources/${feature}_remote_datasource.dart';" : '';
+    final className = feature
+        .split('_')
+        .map((part) =>
+            part.isEmpty ? '' : part[0].toUpperCase() + part.substring(1))
+        .join();
+    final featureDi =
+        File('${root.path}/lib/features/$feature/${feature}_di.dart');
+    final remoteEnabled =
+        config.dataSource == 'remote' || config.dataSource == 'both';
+    final remoteImport = remoteEnabled
+        ? "import 'data/datasources/${feature}_remote_datasource.dart';"
+        : '';
     final datasourceRegistration = remoteEnabled && config.networking == 'dio'
         ? "if (!getIt.isRegistered<${className}RemoteDataSource>()) getIt.registerLazySingleton<${className}RemoteDataSource>(() => ${className}RemoteDataSourceImpl(getIt<Dio>()));"
         : remoteEnabled && config.networking == 'http'
@@ -749,7 +756,8 @@ void register${className}Dependencies(GetIt getIt) {
 }
 ''');
     } else {
-      Console.info('Preserved existing lib/features/$feature/${feature}_di.dart.');
+      Console.info(
+          'Preserved existing lib/features/$feature/${feature}_di.dart.');
     }
 
     final injection = File('${root.path}/lib/core/di/injection.dart');
@@ -771,17 +779,21 @@ void register${className}Dependencies(GetIt getIt) {
         '\n  $registrationsMarker\n  // </bloc_cli:feature-registrations>\n}',
       );
     }
-    if (!source.contains(importsMarker) || !source.contains(registrationsMarker)) {
-      Console.error('Could not add GetIt registration markers to injection.dart.');
+    if (!source.contains(importsMarker) ||
+        !source.contains(registrationsMarker)) {
+      Console.error(
+          'Could not add GetIt registration markers to injection.dart.');
       return;
     }
     final importLine = "import '../../features/$feature/${feature}_di.dart';";
     final registrationLine = '  register${className}Dependencies(getIt);';
     if (!source.contains(importLine)) {
-      source = source.replaceFirst(importsMarker, '$importsMarker\n$importLine');
+      source =
+          source.replaceFirst(importsMarker, '$importsMarker\n$importLine');
     }
     if (!source.contains(registrationLine)) {
-      source = source.replaceFirst(registrationsMarker, '$registrationsMarker\n$registrationLine');
+      source = source.replaceFirst(
+          registrationsMarker, '$registrationsMarker\n$registrationLine');
     }
     await injection.writeAsString(source);
     Console.success('Registered $feature dependencies in GetIt.');
@@ -795,15 +807,18 @@ void register${className}Dependencies(GetIt getIt) {
 
     var content = await pubspec.readAsString();
     final lines = content.split('\n');
-    final dependencyIndex = lines.indexWhere((line) => RegExp(r'^dependencies\s*:\s*(#.*)?$').hasMatch(line));
+    final dependencyIndex = lines.indexWhere(
+        (line) => RegExp(r'^dependencies\s*:\s*(#.*)?$').hasMatch(line));
     if (dependencyIndex == -1) return false;
 
     final existing = <String>{};
     var end = dependencyIndex + 1;
     while (end < lines.length) {
       final line = lines[end];
-      if (line.trim().isNotEmpty && !line.trimLeft().startsWith('#') &&
-          !line.startsWith(' ') && !line.startsWith('\t')) {
+      if (line.trim().isNotEmpty &&
+          !line.trimLeft().startsWith('#') &&
+          !line.startsWith(' ') &&
+          !line.startsWith('\t')) {
         break;
       }
       final match = RegExp(r'^\s{2}([A-Za-z0-9_]+)\s*:').firstMatch(line);
@@ -823,7 +838,6 @@ void register${className}Dependencies(GetIt getIt) {
     await pubspec.writeAsString(lines.join('\n'));
     return true;
   }
-
 
   Future<bool> _addDevDependencies(Map<String, String> dependencies) async {
     if (dependencies.isEmpty) return false;
@@ -876,7 +890,8 @@ void register${className}Dependencies(GetIt getIt) {
       if (result.exitCode == 0) {
         Console.success('flutter pub get completed.');
       } else {
-        Console.error('flutter pub get failed (exit code ${result.exitCode}). Run it manually.');
+        Console.error(
+            'flutter pub get failed (exit code ${result.exitCode}). Run it manually.');
       }
     } catch (error) {
       Console.error('Could not run flutter pub get: $error');

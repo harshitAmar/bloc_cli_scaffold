@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'config/project_config.dart';
-import 'generators/feature_generator.dart';
-import 'generators/screen_generator.dart';
 import 'generators/application_generator.dart';
-import 'generators/routing_generator.dart';
+import 'generators/feature_generator.dart';
 import 'generators/networking_generator.dart';
+import 'generators/routing_generator.dart';
+import 'generators/screen_generator.dart';
 import 'utils/console.dart';
 import 'utils/project.dart';
 
