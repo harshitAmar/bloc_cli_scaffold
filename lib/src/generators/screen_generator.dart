@@ -46,14 +46,14 @@ class ScreenGenerator {
     final screenClass = Project.pascalCase(screen);
     final files = <String, String>{
       'presentation/pages/${screen}_page.dart':
-          _page(screen, screenClass, withBloc),
+          _page(screen, screenClass, withBloc, withRepository),
     };
 
     if (withBloc) {
       files['presentation/bloc/${screen}/${screen}_event.dart'] =
           _event(screenClass);
       files['presentation/bloc/${screen}/${screen}_state.dart'] =
-          _state(screenClass);
+          _state(screen, screenClass, withRepository);
       files['presentation/bloc/${screen}/${screen}_bloc.dart'] =
           _bloc(screen, screenClass, withRepository);
     }
@@ -93,9 +93,16 @@ class ScreenGenerator {
       config.dependencyInjection == 'getit' ||
       config.dependencyInjection == 'getit_injectable';
 
-  String _page(String screen, String c, bool withBloc) {
+  String _page(String screen, String c, bool withBloc, bool withRepository) {
     final imports = withBloc
         ? "import 'package:flutter_bloc/flutter_bloc.dart';\nimport '../bloc/$screen/${screen}_bloc.dart';\nimport '../bloc/$screen/${screen}_event.dart';\nimport '../bloc/$screen/${screen}_state.dart';\n"
+        : '';
+    final showData = config.errorHandling == 'base_repository' &&
+        config.networking == 'dio' &&
+        (config.dataSource == 'remote' || config.dataSource == 'both') &&
+        withBloc && withRepository;
+    final loadedBody = showData
+        ? "if (state is ${c}Loaded) { return Center(child: Text('Loaded ID: \${state.data.id}')); }\n          "
         : '';
     final body = withBloc
         ? '''body: BlocBuilder<${c}Bloc, ${c}State>(
@@ -106,6 +113,7 @@ class ScreenGenerator {
           if (state is ${c}Failure) {
             return Center(child: Text(state.message));
           }
+          $loadedBody
           return Center(
             child: ElevatedButton(
               onPressed: () => context.read<${c}Bloc>().add(const ${c}Started()),
@@ -142,7 +150,24 @@ final class ${c}Started extends ${c}Event {
 }
 ''';
 
-  String _state(String c) => '''
+  String _state(String screen, String c, bool withRepository) {
+    final hasResult = withRepository &&
+        config.errorHandling == 'base_repository' &&
+        config.networking == 'dio' &&
+        (config.dataSource == 'remote' || config.dataSource == 'both');
+    final dataImport = hasResult
+        ? "import '../../../domain/entities/${screen}_entity.dart';\n"
+        : '';
+    final loaded = hasResult
+        ? '''final class ${c}Loaded extends ${c}State {
+  const ${c}Loaded(this.data);
+  final ${c}Entity data;
+}'''
+        : '''final class ${c}Loaded extends ${c}State {
+  const ${c}Loaded();
+}''';
+    return '''
+$dataImport
 sealed class ${c}State {
   const ${c}State();
 }
@@ -155,22 +180,40 @@ final class ${c}Loading extends ${c}State {
   const ${c}Loading();
 }
 
-final class ${c}Loaded extends ${c}State {
-  const ${c}Loaded();
-}
+$loaded
 
 final class ${c}Failure extends ${c}State {
   const ${c}Failure(this.message);
   final String message;
 }
 ''';
+  }
 
   String _bloc(String screen, String c, bool withRepository) {
+    final hasResult = withRepository &&
+        config.errorHandling == 'base_repository' &&
+        config.networking == 'dio' &&
+        (config.dataSource == 'remote' || config.dataSource == 'both');
     final useCaseImport = withRepository && _usesGetIt
         ? "import '../../../domain/usecases/get_${screen}_usecase.dart';\n"
         : '';
     final constructor = withRepository && _usesGetIt
-        ? '''${c}Bloc(this._useCase) : super(const ${c}Initial()) {
+        ? hasResult
+            ? '''${c}Bloc(this._useCase) : super(const ${c}Initial()) {
+    on<${c}Started>(_onStarted);
+  }
+
+  final Get${c}UseCase _useCase;
+
+  Future<void> _onStarted(${c}Started event, Emitter<${c}State> emit) async {
+    emit(const ${c}Loading());
+    final result = await _useCase();
+    result.when(
+      success: (data) => emit(${c}Loaded(data)),
+      failure: (message, statusCode) => emit(${c}Failure(message)),
+    );
+  }'''
+            : '''${c}Bloc(this._useCase) : super(const ${c}Initial()) {
     on<${c}Started>(_onStarted);
   }
 
@@ -185,7 +228,13 @@ final class ${c}Failure extends ${c}State {
       emit(${c}Failure(error.toString()));
     }
   }'''
-        : '''${c}Bloc() : super(const ${c}Initial()) {
+        : hasResult
+            ? '''${c}Bloc() : super(const ${c}Initial()) {
+    on<${c}Started>((event, emit) => emit(
+      const ${c}Failure('Wire the generated Get${c}UseCase into this BLoC for your manual DI setup.'),
+    ));
+  }'''
+            : '''${c}Bloc() : super(const ${c}Initial()) {
     on<${c}Started>((event, emit) => emit(const ${c}Loaded()));
   }''';
     return '''import 'package:flutter_bloc/flutter_bloc.dart';
@@ -202,19 +251,48 @@ class ${c}Bloc extends Bloc<${c}Event, ${c}State> {
 
   Map<String, String> _repositoryFiles(String screen, String c) {
     final remote = config.dataSource == 'remote' || config.dataSource == 'both';
+    final hasResult = config.errorHandling == 'base_repository' &&
+        config.networking == 'dio' &&
+        (config.dataSource == 'remote' || config.dataSource == 'both');
     final entity = '''class ${c}Entity {
   const ${c}Entity({required this.id});
   final String id;
 }
 ''';
-    final repository = '''import '../entities/${screen}_entity.dart';
+    final repository = hasResult
+        ? '''
+import '../../../../core/network/api_result.dart';
+import '../entities/${screen}_entity.dart';
+
+/// Domain contract for retrieving $c data.
+abstract interface class ${c}Repository {
+  Future<ApiResult<${c}Entity>> get${c}();
+}
+'''
+        : '''
+import '../entities/${screen}_entity.dart';
 
 /// Domain contract for retrieving $c data.
 abstract interface class ${c}Repository {
   Future<${c}Entity> get${c}();
 }
 ''';
-    final useCase = '''import '../entities/${screen}_entity.dart';
+    final useCase = hasResult
+        ? '''
+import '../../../../core/network/api_result.dart';
+import '../entities/${screen}_entity.dart';
+import '../repositories/${screen}_repository.dart';
+
+/// Executes the $c retrieval use case and preserves its typed outcome.
+class Get${c}UseCase {
+  const Get${c}UseCase(this._repository);
+  final ${c}Repository _repository;
+
+  Future<ApiResult<${c}Entity>> call() => _repository.get${c}();
+}
+'''
+        : '''
+import '../entities/${screen}_entity.dart';
 import '../repositories/${screen}_repository.dart';
 
 /// Executes the $c retrieval use case.
@@ -237,19 +315,22 @@ class ${c}Model extends ${c}Entity {
 }
 ''';
     final ds = config.networking == 'dio'
-        ? config.errorHandling == 'base_repository'
-            ? '''import 'package:dio/dio.dart';
+        ? hasResult
+            ? '''import '../../../../core/network/api_result.dart';
 import '../../../../core/network/base_repository.dart';
 import '../models/${screen}_model.dart';
 
+/// Executes requests through the shared API pipeline.
 class ${c}RemoteDataSource extends BaseRepository {
   const ${c}RemoteDataSource(super.dio);
 
-  Future<${c}Model> get${c}() {
-    return handleApiCall<${c}Model>(
-      request: () => dio.get('/${screen}'),
-      fromJson: (json) =>
-          ${c}Model.fromJson(json as Map<String, dynamic>),
+  Future<ApiResult<${c}Model>> get${c}() {
+    return safeApiCall<${c}Model>(
+      () => handleApiCall<${c}Model>(
+        request: () => dio.get('/${screen}'),
+        fromJson: (json) =>
+            ${c}Model.fromJson(json as Map<String, dynamic>),
+      ),
     );
   }
 }
@@ -279,7 +360,30 @@ abstract interface class ${c}RemoteDataSource {
 // TODO: Implement this datasource using the configured networking client.
 ''';
     final repoImpl = remote && config.networking == 'dio'
-        ? '''import '../../domain/entities/${screen}_entity.dart';
+        ? hasResult
+            ? '''import '../../../../core/network/api_result.dart';
+import '../../domain/entities/${screen}_entity.dart';
+import '../../domain/repositories/${screen}_repository.dart';
+import '../datasources/${screen}_remote_datasource.dart';
+
+class ${c}RepositoryImpl implements ${c}Repository {
+  const ${c}RepositoryImpl(this._dataSource);
+  final ${c}RemoteDataSource _dataSource;
+
+  @override
+  Future<ApiResult<${c}Entity>> get${c}() async {
+    final result = await _dataSource.get${c}();
+    return result.when(
+      success: (model) => ApiResult<${c}Entity>.success(model),
+      failure: (message, statusCode) => ApiResult<${c}Entity>.failure(
+        message,
+        statusCode: statusCode,
+      ),
+    );
+  }
+}
+'''
+            : '''import '../../domain/entities/${screen}_entity.dart';
 import '../../domain/repositories/${screen}_repository.dart';
 import '../datasources/${screen}_remote_datasource.dart';
 

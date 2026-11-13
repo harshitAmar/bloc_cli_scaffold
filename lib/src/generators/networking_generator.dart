@@ -172,6 +172,7 @@ class ApiException implements Exception {
       DioExceptionType.cancel => 'Request cancelled.',
       DioExceptionType.badResponse => 'Received invalid status code: $statusCode',
       DioExceptionType.unknown => error.message ?? 'Something went wrong. Please try again.',
+       DioExceptionType.transformTimeout => error.message ?? 'Request timeout. Please try again.',
     };
     return ApiException(message, statusCode: statusCode);
   }
@@ -646,10 +647,11 @@ import 'package:get_it/get_it.dart';
 
 import '../network/api_client.dart';
 
-final getIt = GetIt.instance;
 
 // <bloc_cli:feature-imports>
 // </bloc_cli:feature-imports>
+
+final getIt = GetIt.instance;
 
 Future<void> configureDependencies({required String baseUrl}) async {
   if (!getIt.isRegistered<ApiClient>()) {
@@ -670,10 +672,12 @@ Future<void> configureDependencies({required String baseUrl}) async {
 import 'package:get_it/get_it.dart';
 import 'package:http/http.dart' as http;
 
-final getIt = GetIt.instance;
 
 // <bloc_cli:feature-imports>
 // </bloc_cli:feature-imports>
+
+final getIt = GetIt.instance;
+
 
 Future<void> configureDependencies() async {
   if (!getIt.isRegistered<http.Client>()) {
@@ -688,10 +692,13 @@ Future<void> configureDependencies() async {
     return '''
 import 'package:get_it/get_it.dart';
 
-final getIt = GetIt.instance;
 
 // <bloc_cli:feature-imports>
 // </bloc_cli:feature-imports>
+
+
+final getIt = GetIt.instance;
+
 
 Future<void> configureDependencies() async {
   // <bloc_cli:feature-registrations>

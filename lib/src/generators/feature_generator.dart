@@ -15,6 +15,12 @@ class FeatureGenerator {
   /// Architecture and integration choices for the target project.
   final ProjectConfig config;
 
+  /// Whether Dio BaseRepository generation returns typed API results.
+  bool get _usesApiResult =>
+      config.errorHandling == 'base_repository' &&
+      config.networking == 'dio' &&
+      (config.dataSource == 'remote' || config.dataSource == 'both');
+
   /// Creates the feature named [rawName]. Existing files are preserved unless
   /// [overwrite] is true.
   Future<void> generate(String rawName, {bool overwrite = false}) async {
@@ -83,7 +89,19 @@ class ${c}Entity {
 }
 ''';
 
-  String _repository(String f, String c) => '''
+  String _repository(String f, String c) {
+    if (_usesApiResult) {
+      return '''
+import '../../../../core/network/api_result.dart';
+import '../entities/${f}_entity.dart';
+
+/// Domain contract for ${f} feature data operations.
+abstract interface class ${c}Repository {
+  Future<ApiResult<${c}Entity>> get${c}();
+}
+''';
+    }
+    return '''
 import '../entities/${f}_entity.dart';
 
 /// Domain contract for ${f} feature data operations.
@@ -91,20 +109,37 @@ abstract interface class ${c}Repository {
   Future<${c}Entity> get${c}();
 }
 ''';
+  }
 
-  String _useCase(String f, String c) => '''
+  String _useCase(String f, String c) {
+    if (_usesApiResult) {
+      return '''
+import '../../../../core/network/api_result.dart';
+import '../entities/${f}_entity.dart';
+import '../repositories/${f}_repository.dart';
+
+/// Retrieves the primary ${f} feature entity and preserves its typed outcome.
+class Get${c}UseCase {
+  const Get${c}UseCase(this._repository);
+  final ${c}Repository _repository;
+
+  Future<ApiResult<${c}Entity>> call() => _repository.get${c}();
+}
+''';
+    }
+    return '''
 import '../entities/${f}_entity.dart';
 import '../repositories/${f}_repository.dart';
 
 /// Retrieves the primary ${f} feature entity.
 class Get${c}UseCase {
   const Get${c}UseCase(this._repository);
-
   final ${c}Repository _repository;
 
   Future<${c}Entity> call() => _repository.get${c}();
 }
 ''';
+  }
 
   String _model(String f, String c) => '''
 import '../../domain/entities/${f}_entity.dart';
@@ -125,32 +160,62 @@ class ${c}Model extends ${c}Entity {
 ''';
 
   String _repositoryImpl(String f, String c) {
-    final datasourceImport =
-        (config.dataSource == 'remote' || config.dataSource == 'both')
-            ? "import '../datasources/${f}_remote_datasource.dart';\n"
-            : '';
-    final ctor = (config.dataSource == 'remote' || config.dataSource == 'both')
-        ? 'const ${c}RepositoryImpl(this._dataSource);\n\n  final ${c}RemoteDataSource _dataSource;'
-        : 'const ${c}RepositoryImpl();';
-    final body = (config.dataSource == 'remote' || config.dataSource == 'both')
-        ? 'final model = await _dataSource.get${c}();\n    return model;'
-        : "throw UnimplementedError('Connect your selected datasource here.');";
-    return '''
+    final hasRemote =
+        config.dataSource == 'remote' || config.dataSource == 'both';
+    if (hasRemote && config.networking == 'dio' && _usesApiResult) {
+      return '''
+import '../../../../core/network/api_result.dart';
 import '../../domain/entities/${f}_entity.dart';
 import '../../domain/repositories/${f}_repository.dart';
-\$d
-import '../models/${f}_model.dart';
+import '../datasources/${f}_remote_datasource.dart';
 
+/// Maps data models to domain entities without discarding API failures.
+class ${c}RepositoryImpl implements ${c}Repository {
+  const ${c}RepositoryImpl(this._dataSource);
+  final ${c}RemoteDataSource _dataSource;
+
+  @override
+  Future<ApiResult<${c}Entity>> get${c}() async {
+    final result = await _dataSource.get${c}();
+    return result.when(
+      success: (model) => ApiResult<${c}Entity>.success(model),
+      failure: (message, statusCode) => ApiResult<${c}Entity>.failure(
+        message,
+        statusCode: statusCode,
+      ),
+    );
+  }
+}
+''';
+    }
+    final datasourceImport = hasRemote
+        ? "import '../datasources/${f}_remote_datasource.dart';\n"
+        : '';
+    final ctor = hasRemote
+        ? 'const ${c}RepositoryImpl(this._dataSource);\n\n  final ${c}RemoteDataSource _dataSource;'
+        : 'const ${c}RepositoryImpl();';
+    final resultMode = _usesApiResult;
+    final returnType = resultMode ? 'ApiResult<${c}Entity>' : '${c}Entity';
+    final resultImport = resultMode
+        ? "import '../../../../core/network/api_result.dart';\n"
+        : '';
+    final body = hasRemote
+        ? 'return _dataSource.get${c}();'
+        : "throw UnimplementedError('Connect your selected datasource here.');";
+    return '''
+$resultImport
+import '../../domain/entities/${f}_entity.dart';
+import '../../domain/repositories/${f}_repository.dart';
+$datasourceImport
 class ${c}RepositoryImpl implements ${c}Repository {
   $ctor
 
   @override
-  Future<${c}Entity> get${c}() async {
+  Future<$returnType> get${c}() async {
     $body
   }
 }
-'''
-        .replaceAll('\$d', datasourceImport);
+''';
   }
 
   String _event(String f, String c) {
@@ -269,7 +334,22 @@ final class ${c}Failure extends ${c}State {
 ''';
   }
 
-  String _bloc(String f, String c) => '''
+  String _bloc(String f, String c) {
+    final resultBranch = _usesApiResult
+        ? '''
+    final result = await _get${c}();
+    result.when(
+      success: (data) => emit(${c}Loaded(data)),
+      failure: (message, statusCode) => emit(${c}Failure(message)),
+    );'''
+        : '''
+    try {
+      final result = await _get${c}();
+      emit(${c}Loaded(result));
+    } catch (error) {
+      emit(${c}Failure(error.toString()));
+    }''';
+    return '''
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/usecases/get_${f}_usecase.dart';
@@ -278,8 +358,7 @@ import '${f}_state.dart';
 
 /// Coordinates ${f} feature events and presentation state.
 class ${c}Bloc extends Bloc<${c}Event, ${c}State> {
-  ${c}Bloc(this._get${c})
-      : super(const ${c}Initial()) {
+  ${c}Bloc(this._get${c}) : super(const ${c}Initial()) {
     on<${c}Requested>(_onRequested);
   }
 
@@ -290,15 +369,11 @@ class ${c}Bloc extends Bloc<${c}Event, ${c}State> {
     Emitter<${c}State> emit,
   ) async {
     emit(const ${c}Loading());
-    try {
-      final result = await _get${c}();
-      emit(${c}Loaded(result));
-    } catch (error) {
-      emit(${c}Failure(error.toString()));
-    }
+$resultBranch
   }
 }
 ''';
+  }
 
   String _page(String f, String c) => '''
 import 'package:flutter/material.dart';
@@ -344,12 +419,12 @@ class ${c}Page extends StatelessWidget {
     if (config.networking == 'dio') {
       if (config.errorHandling == 'base_repository') {
         return '''
-import 'package:dio/dio.dart';
+import '../../../../core/network/api_result.dart';
 import '../../../../core/network/base_repository.dart';
 import '../models/${f}_model.dart';
 
 abstract interface class ${c}RemoteDataSource {
-  Future<${c}Model> get${c}();
+  Future<ApiResult<${c}Model>> get${c}();
 }
 
 /// Uses the shared BaseRepository request/error pipeline.
@@ -358,11 +433,13 @@ class ${c}RemoteDataSourceImpl extends BaseRepository
   const ${c}RemoteDataSourceImpl(super.dio);
 
   @override
-  Future<${c}Model> get${c}() {
-    return handleApiCall<${c}Model>(
-      request: () => dio.get('/${f}'),
-      fromJson: (json) =>
-          ${c}Model.fromJson(json as Map<String, dynamic>),
+  Future<ApiResult<${c}Model>> get${c}() {
+    return safeApiCall<${c}Model>(
+      () => handleApiCall<${c}Model>(
+        request: () => dio.get('/${f}'),
+        fromJson: (json) =>
+            ${c}Model.fromJson(json as Map<String, dynamic>),
+      ),
     );
   }
 }

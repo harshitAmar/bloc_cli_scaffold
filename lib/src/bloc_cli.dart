@@ -35,7 +35,7 @@ class BlocCli {
       case 'version':
       case '--version':
       case '-v':
-        Console.info('bloc_cli 1.0.1');
+        Console.info('bloc_cli 1.0.2');
         return;
       default:
         Console.error('Unknown command: ${args.first}');

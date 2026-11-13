@@ -1,4 +1,6 @@
-# bloc_cli
+# bloc_cli_scaffold
+
+The published Dart package is `bloc_cli_scaffold`; its installed executable command is `bloc_cli`.
 
 A configurable Flutter CLI that scaffolds Clean Architecture features, screens, BLoC, routing, networking, and dependency injection.
 
@@ -30,7 +32,7 @@ A configurable Flutter CLI that scaffolds Clean Architecture features, screens, 
 ## Installation
 
 ```bash
-dart pub global activate bloc_cli
+dart pub global activate bloc_cli_scaffold
 ```
 
 Verify the installation:
@@ -149,6 +151,12 @@ Available choices:
 | Serialization | json_serializable, Freezed, Manual, Custom |
 
 Some custom/manual integrations require application-specific wiring. Review the generated code and the console instructions for the selected options. In this release, automatic DI integration is primarily implemented for GetIt; do not assume that selecting Manual, Custom, or Injectable produces the same generated behavior as plain GetIt. The `BaseRepository` strategy is implemented for Dio-backed generated datasources; HTTP, Custom, and None networking choices keep their own integration path.
+
+### BaseRepository result propagation
+
+When Dio and `BaseRepository (centralized errors)` are selected, generated remote datasources return `Future<ApiResult<Model>>`. Repository implementations map that into `ApiResult<Entity>`, and repository contracts and UseCases preserve the typed result. Generated BLoCs explicitly handle success and failure with `result.when(...)`, preventing a failed API response from being emitted as a loaded state.
+
+`ApiResult` is generated in `lib/core/network/api_result.dart`. Expected API failures are represented by `ApiResult.failure`; successful responses use `ApiResult.success`.
 
 ## Generated structure
 
