@@ -1,6 +1,6 @@
 name: bloc_cli_scaffold
 description: A configurable Flutter CLI for generating feature-first Clean Architecture projects with BLoC, routing, networking, and dependency injection.
-version: 1.0.1
+version: 1.0.2
 
 homepage: https://github.com/harshitAmar/bloc_cli_scaffold
 repository: https://github.com/harshitAmar/bloc_cli_scaffold
